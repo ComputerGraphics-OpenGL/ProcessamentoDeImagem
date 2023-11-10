@@ -15,6 +15,10 @@ import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 
@@ -96,10 +100,6 @@ public class ImageProcessor extends Application {
     private void displayImage(Mat imageMat, ImageView imageView) {
         Image image = matToImage(imageMat);
         imageView.setImage(image);
-
-        // Defina a escala da ImageView para ajustar a imagem dentro dela
-        imageView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
-        imageView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
     }
 
     private void displaySideBySide(Mat originalMat, Mat processedMat) {
@@ -107,13 +107,6 @@ public class ImageProcessor extends Application {
 
         ImageView originalView = new ImageView(matToImage(originalMat));
         ImageView processedView = new ImageView(matToImage(processedMat));
-
-        // Defina a escala das ImageView para ajustar as imagens dentro delas
-        originalView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
-        originalView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
-
-        processedView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
-        processedView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
 
         HBox hbox = new HBox(10);
         hbox.getChildren().addAll(originalView, processedView);
@@ -129,10 +122,36 @@ public class ImageProcessor extends Application {
         return outputImage;
     }
 
-    private Mat bufferedImageToMat(java.awt.image.BufferedImage bufferedImage) {
-        Mat mat = new Mat(bufferedImage.getHeight(), bufferedImage.getWidth(), CvType.CV_8UC3);
-        byte[] data = ((java.awt.image.DataBufferByte) bufferedImage.getRaster().getDataBuffer()).getData();
-        mat.put(0, 0, data);
+    private Mat bufferedImageToMat(BufferedImage bufferedImage) {
+        Mat mat;
+        DataBuffer dataBuffer = bufferedImage.getRaster().getDataBuffer();
+
+        if (dataBuffer instanceof DataBufferByte) {
+            byte[] data = ((DataBufferByte) dataBuffer).getData();
+            mat = new Mat(bufferedImage.getHeight(), bufferedImage.getWidth(), CvType.CV_8UC3);
+            mat.put(0, 0, data);
+        } else if (dataBuffer instanceof DataBufferInt) {
+            int[] data = ((DataBufferInt) dataBuffer).getData();
+            byte[] bytes = new byte[bufferedImage.getWidth() * bufferedImage.getHeight() * 4];
+
+            int pixelIndex = 0;
+            for (int y = 0; y < bufferedImage.getHeight(); y++) {
+                for (int x = 0; x < bufferedImage.getWidth(); x++) {
+                    int pixel = data[pixelIndex++];
+                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 2] = (byte) ((pixel >> 16) & 0xFF); // Red component
+                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 1] = (byte) ((pixel >> 8) & 0xFF);  // Green component
+                    bytes[(y * bufferedImage.getWidth() + x) * 4] = (byte) (pixel & 0xFF);             // Blue component
+                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 3] = (byte) ((pixel >> 24) & 0xFF); // Alpha component
+                }
+            }
+
+            mat = new Mat(bufferedImage.getHeight(), bufferedImage.getWidth(), CvType.CV_8UC4);
+            mat.put(0, 0, bytes);
+            Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGRA2BGR);
+        } else {
+            throw new IllegalArgumentException("Unsupported DataBuffer type: " + dataBuffer.getClass());
+        }
+
         return mat;
     }
 

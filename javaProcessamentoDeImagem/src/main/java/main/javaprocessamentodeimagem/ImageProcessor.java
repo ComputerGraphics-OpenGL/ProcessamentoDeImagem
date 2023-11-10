@@ -118,7 +118,16 @@ public class ImageProcessor extends Application {
 
     private Mat applyGaussianBlur(Mat inputImage) {
         Mat outputImage = new Mat();
-        Imgproc.GaussianBlur(inputImage, outputImage, new org.opencv.core.Size(5, 5), 0, 0);
+
+        // Calcular o tamanho do kernel com base na largura da imagem
+        int kernelSize = (int) (inputImage.width() * 0.05);
+
+        // Certificar-se de que o tamanho do kernel seja ímpar
+        kernelSize = (kernelSize % 2 == 0) ? kernelSize + 1 : kernelSize;
+
+        // Aplicar o filtro Gaussiano
+        Imgproc.GaussianBlur(inputImage, outputImage, new org.opencv.core.Size(kernelSize, kernelSize), 0, 0);
+
         return outputImage;
     }
 

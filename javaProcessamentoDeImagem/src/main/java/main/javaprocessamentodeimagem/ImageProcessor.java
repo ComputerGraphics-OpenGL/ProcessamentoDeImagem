@@ -24,8 +24,8 @@ import java.io.File;
 
 public class ImageProcessor extends Application {
 
-    private ImageView originalImageView;
-    private ImageView processedImageView;
+    private ImageView visualizadorOriginal;
+    private ImageView visualizadorProcessado;
 
     public static void main(String[] args) {
         try {
@@ -40,39 +40,40 @@ public class ImageProcessor extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        primaryStage.setTitle("Image Processor");
+        primaryStage.setTitle("Processador de Imagens");
 
-        originalImageView = new ImageView();
-        processedImageView = new ImageView();
+        visualizadorOriginal = new ImageView();
+        visualizadorProcessado = new ImageView();
 
-        Button openButton = new Button("Open Image");
-        openButton.setOnAction(e -> openImage());
+        Button botaoAbrir = new Button("Abrir Imagem");
+        botaoAbrir.setOnAction(e -> abrirImagem());
 
-        Button processButton = new Button("Process Image");
-        processButton.setOnAction(e -> processImage());
+        Button botaoProcessar = new Button("Processar Imagem");
+        botaoProcessar.setOnAction(e -> processarImagem());
 
         HBox hbox = new HBox(10);
-        hbox.getChildren().addAll(openButton, processButton);
+        hbox.getChildren().addAll(botaoAbrir, botaoProcessar);
 
-        HBox imageBox = new HBox(10);
-        imageBox.getChildren().addAll(originalImageView, processedImageView);
+        HBox caixaImagens = new HBox(10);
+        caixaImagens.getChildren().addAll(visualizadorOriginal, visualizadorProcessado);
 
-        Scene scene = new Scene(new HBox(hbox, imageBox), 600, 400);
-        primaryStage.setScene(scene);
+        Scene cena = new Scene(new HBox(hbox, caixaImagens), 600, 400);
+        primaryStage.setScene(cena);
         primaryStage.show();
     }
 
-    private void openImage() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"));
-        File selectedFile = fileChooser.showOpenDialog(null);
+    // Método para abrir uma imagem
+    private void abrirImagem() {
+        FileChooser seletorArquivo = new FileChooser();
+        seletorArquivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos de Imagem", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"));
+        File arquivoSelecionado = seletorArquivo.showOpenDialog(null);
 
-        if (selectedFile != null) {
+        if (arquivoSelecionado != null) {
             try {
-                Mat originalImage = Imgcodecs.imread(selectedFile.getAbsolutePath());
-                if (!originalImage.empty()) {
+                Mat imagemOriginal = Imgcodecs.imread(arquivoSelecionado.getAbsolutePath());
+                if (!imagemOriginal.empty()) {
                     System.out.println("Imagem aberta com sucesso.");
-                    displayImage(originalImage, originalImageView);
+                    exibirImagem(imagemOriginal, visualizadorOriginal);
                 } else {
                     System.err.println("Erro ao abrir a imagem: A imagem está vazia.");
                 }
@@ -83,90 +84,96 @@ public class ImageProcessor extends Application {
         }
     }
 
-    private void processImage() {
-        if (originalImageView.getImage() != null) {
-            Image originalImage = originalImageView.getImage();
-            Mat originalMat = bufferedImageToMat(SwingFXUtils.fromFXImage(originalImage, null));
-            Mat processedMat = applyGaussianBlur(originalMat);
+    // Método para processar a imagem
+    private void processarImagem() {
+        if (visualizadorOriginal.getImage() != null) {
+            Image imagemOriginal = visualizadorOriginal.getImage();
+            Mat matrizOriginal = bufferedImageParaMat(SwingFXUtils.fromFXImage(imagemOriginal, null));
+            Mat matrizProcessada = aplicarDesfoqueGaussiano(matrizOriginal);
 
-            Image processedImage = matToImage(processedMat);
-            processedImageView.setImage(processedImage);
+            Image imagemProcessada = matParaImagem(matrizProcessada);
+            visualizadorProcessado.setImage(imagemProcessada);
 
-            // Display original and processed images in a new window
-            displaySideBySide(originalMat, processedMat);
+            // Exibir imagens original e processada em uma nova janela
+            exibirLadoALado(matrizOriginal, matrizProcessada);
         }
     }
 
-    private void displayImage(Mat imageMat, ImageView imageView) {
-        Image image = matToImage(imageMat);
-        imageView.setImage(image);
+    // Método para exibir uma imagem na interface gráfica
+    private void exibirImagem(Mat matrizImagem, ImageView visualizador) {
+        Image imagem = matParaImagem(matrizImagem);
+        visualizador.setImage(imagem);
     }
 
-    private void displaySideBySide(Mat originalMat, Mat processedMat) {
-        Stage popupStage = new Stage();
+    // Método para exibir imagens original e processada lado a lado
+    private void exibirLadoALado(Mat matrizOriginal, Mat matrizProcessada) {
+        Stage janelaPopup = new Stage();
 
-        ImageView originalView = new ImageView(matToImage(originalMat));
-        ImageView processedView = new ImageView(matToImage(processedMat));
+        ImageView visualizadorOriginal = new ImageView(matParaImagem(matrizOriginal));
+        ImageView visualizadorProcessado = new ImageView(matParaImagem(matrizProcessada));
 
         HBox hbox = new HBox(10);
-        hbox.getChildren().addAll(originalView, processedView);
+        hbox.getChildren().addAll(visualizadorOriginal, visualizadorProcessado);
 
-        Scene popupScene = new Scene(hbox);
-        popupStage.setScene(popupScene);
-        popupStage.show();
+        Scene cenaPopup = new Scene(hbox);
+        janelaPopup.setScene(cenaPopup);
+        janelaPopup.show();
     }
 
-    private Mat applyGaussianBlur(Mat inputImage) {
-        Mat outputImage = new Mat();
+    // Método para aplicar um desfoque gaussiano à imagem
+    private Mat aplicarDesfoqueGaussiano(Mat imagemEntrada) {
+        Mat imagemSaida = new Mat();
 
         // Calcular o tamanho do kernel com base na largura da imagem
-        int kernelSize = (int) (inputImage.width() * 0.05);
+        int tamanhoKernel = (int) (imagemEntrada.width() * 0.05);
 
         // Certificar-se de que o tamanho do kernel seja ímpar
-        kernelSize = (kernelSize % 2 == 0) ? kernelSize + 1 : kernelSize;
+        tamanhoKernel = (tamanhoKernel % 2 == 0) ? tamanhoKernel + 1 : tamanhoKernel;
 
         // Aplicar o filtro Gaussiano
-        Imgproc.GaussianBlur(inputImage, outputImage, new org.opencv.core.Size(kernelSize, kernelSize), 0, 0);
+        Imgproc.GaussianBlur(imagemEntrada, imagemSaida, new org.opencv.core.Size(tamanhoKernel, tamanhoKernel), 0, 0);
 
-        return outputImage;
+        return imagemSaida;
     }
 
-    private Mat bufferedImageToMat(BufferedImage bufferedImage) {
-        Mat mat;
-        DataBuffer dataBuffer = bufferedImage.getRaster().getDataBuffer();
+    // Método para converter uma imagem em buffer para uma matriz
+    private Mat bufferedImageParaMat(BufferedImage imagemBuffer) {
+        Mat matriz;
+        DataBuffer dataBuffer = imagemBuffer.getRaster().getDataBuffer();
 
         if (dataBuffer instanceof DataBufferByte) {
-            byte[] data = ((DataBufferByte) dataBuffer).getData();
-            mat = new Mat(bufferedImage.getHeight(), bufferedImage.getWidth(), CvType.CV_8UC3);
-            mat.put(0, 0, data);
+            byte[] dados = ((DataBufferByte) dataBuffer).getData();
+            matriz = new Mat(imagemBuffer.getHeight(), imagemBuffer.getWidth(), CvType.CV_8UC3);
+            matriz.put(0, 0, dados);
         } else if (dataBuffer instanceof DataBufferInt) {
-            int[] data = ((DataBufferInt) dataBuffer).getData();
-            byte[] bytes = new byte[bufferedImage.getWidth() * bufferedImage.getHeight() * 4];
+            int[] dados = ((DataBufferInt) dataBuffer).getData();
+            byte[] bytes = new byte[imagemBuffer.getWidth() * imagemBuffer.getHeight() * 4];
 
-            int pixelIndex = 0;
-            for (int y = 0; y < bufferedImage.getHeight(); y++) {
-                for (int x = 0; x < bufferedImage.getWidth(); x++) {
-                    int pixel = data[pixelIndex++];
-                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 2] = (byte) ((pixel >> 16) & 0xFF); // Red component
-                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 1] = (byte) ((pixel >> 8) & 0xFF);  // Green component
-                    bytes[(y * bufferedImage.getWidth() + x) * 4] = (byte) (pixel & 0xFF);             // Blue component
-                    bytes[(y * bufferedImage.getWidth() + x) * 4 + 3] = (byte) ((pixel >> 24) & 0xFF); // Alpha component
+            int indicePixel = 0;
+            for (int y = 0; y < imagemBuffer.getHeight(); y++) {
+                for (int x = 0; x < imagemBuffer.getWidth(); x++) {
+                    int pixel = dados[indicePixel++];
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 2] = (byte) ((pixel >> 16) & 0xFF); // Componente Vermelho
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 1] = (byte) ((pixel >> 8) & 0xFF);  // Componente Verde
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4] = (byte) (pixel & 0xFF);             // Componente Azul
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 3] = (byte) ((pixel >> 24) & 0xFF); // Componente Alfa
                 }
             }
 
-            mat = new Mat(bufferedImage.getHeight(), bufferedImage.getWidth(), CvType.CV_8UC4);
-            mat.put(0, 0, bytes);
-            Imgproc.cvtColor(mat, mat, Imgproc.COLOR_BGRA2BGR);
+            matriz = new Mat(imagemBuffer.getHeight(), imagemBuffer.getWidth(), CvType.CV_8UC4);
+            matriz.put(0, 0, bytes);
+            Imgproc.cvtColor(matriz, matriz, Imgproc.COLOR_BGRA2BGR);
         } else {
-            throw new IllegalArgumentException("Unsupported DataBuffer type: " + dataBuffer.getClass());
+            throw new IllegalArgumentException("Tipo de DataBuffer não suportado: " + dataBuffer.getClass());
         }
 
-        return mat;
+        return matriz;
     }
 
-    private Image matToImage(Mat mat) {
+    // Método para converter uma matriz em uma imagem
+    private Image matParaImagem(Mat matriz) {
         MatOfByte byteMat = new MatOfByte();
-        Imgcodecs.imencode(".png", mat, byteMat);
+        Imgcodecs.imencode(".png", matriz, byteMat);
         byte[] byteArray = byteMat.toArray();
         try {
             return new Image(new ByteArrayInputStream(byteArray));

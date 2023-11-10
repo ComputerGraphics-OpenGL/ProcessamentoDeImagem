@@ -9,16 +9,14 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
-import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
-import org.opencv.core.CvType;
 
 public class ImageProcessor extends Application {
 
@@ -26,6 +24,13 @@ public class ImageProcessor extends Application {
     private ImageView processedImageView;
 
     public static void main(String[] args) {
+        try {
+            nu.pattern.OpenCV.loadLocally();
+        } catch (Exception e) {
+            System.err.println("Erro ao carregar a biblioteca OpenCV: " + e.getMessage());
+            System.exit(1);
+        }
+
         launch(args);
     }
 
@@ -59,8 +64,18 @@ public class ImageProcessor extends Application {
         File selectedFile = fileChooser.showOpenDialog(null);
 
         if (selectedFile != null) {
-            Mat originalImage = Imgcodecs.imread(selectedFile.getAbsolutePath());
-            displayImage(originalImage, originalImageView);
+            try {
+                Mat originalImage = Imgcodecs.imread(selectedFile.getAbsolutePath());
+                if (!originalImage.empty()) {
+                    System.out.println("Imagem aberta com sucesso.");
+                    displayImage(originalImage, originalImageView);
+                } else {
+                    System.err.println("Erro ao abrir a imagem: A imagem está vazia.");
+                }
+            } catch (Exception e) {
+                System.err.println("Erro ao abrir a imagem: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 
@@ -72,12 +87,40 @@ public class ImageProcessor extends Application {
 
             Image processedImage = matToImage(processedMat);
             processedImageView.setImage(processedImage);
+
+            // Display original and processed images in a new window
+            displaySideBySide(originalMat, processedMat);
         }
     }
 
     private void displayImage(Mat imageMat, ImageView imageView) {
         Image image = matToImage(imageMat);
         imageView.setImage(image);
+
+        // Defina a escala da ImageView para ajustar a imagem dentro dela
+        imageView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
+        imageView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
+    }
+
+    private void displaySideBySide(Mat originalMat, Mat processedMat) {
+        Stage popupStage = new Stage();
+
+        ImageView originalView = new ImageView(matToImage(originalMat));
+        ImageView processedView = new ImageView(matToImage(processedMat));
+
+        // Defina a escala das ImageView para ajustar as imagens dentro delas
+        originalView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
+        originalView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
+
+        processedView.setFitWidth(300); // Defina a largura desejada (ajuste conforme necessário)
+        processedView.setFitHeight(200); // Defina a altura desejada (ajuste conforme necessário)
+
+        HBox hbox = new HBox(10);
+        hbox.getChildren().addAll(originalView, processedView);
+
+        Scene popupScene = new Scene(hbox);
+        popupStage.setScene(popupScene);
+        popupStage.show();
     }
 
     private Mat applyGaussianBlur(Mat inputImage) {

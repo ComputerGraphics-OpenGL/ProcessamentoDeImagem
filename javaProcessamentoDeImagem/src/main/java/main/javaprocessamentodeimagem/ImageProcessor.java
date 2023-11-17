@@ -29,12 +29,16 @@ public class ImageProcessor extends Application {
 
     public static void main(String[] args) {
         try {
+            // Carrega a biblioteca OpenCV localmente
             nu.pattern.OpenCV.loadLocally();
         } catch (Exception e) {
-            System.err.println("Erro ao carregar a biblioteca OpenCV: " + e.getMessage());
+            System.err.println(
+                    "Erro ao carregar a biblioteca OpenCV: "
+                    + e.getMessage());
             System.exit(1);
         }
 
+        // Inicia a aplicação JavaFX
         launch(args);
     }
 
@@ -42,6 +46,7 @@ public class ImageProcessor extends Application {
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Processador de Imagens");
 
+        // Configuração dos elementos da interface gráfica
         visualizadorOriginal = new ImageView();
         visualizadorProcessado = new ImageView();
 
@@ -55,7 +60,10 @@ public class ImageProcessor extends Application {
         hbox.getChildren().addAll(botaoAbrir, botaoProcessar);
 
         HBox caixaImagens = new HBox(10);
-        caixaImagens.getChildren().addAll(visualizadorOriginal, visualizadorProcessado);
+        caixaImagens.getChildren().addAll(
+                visualizadorOriginal,
+                visualizadorProcessado
+        );
 
         Scene cena = new Scene(new HBox(hbox, caixaImagens), 600, 400);
         primaryStage.setScene(cena);
@@ -65,15 +73,32 @@ public class ImageProcessor extends Application {
     // Método para abrir uma imagem
     private void abrirImagem() {
         FileChooser seletorArquivo = new FileChooser();
-        seletorArquivo.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos de Imagem", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"));
+        seletorArquivo.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter(
+                        "Arquivos de Imagem",
+                        "*.png",
+                        "*.jpg",
+                        "*.jpeg",
+                        "*.gif",
+                        "*.bmp"
+                )
+        );
         File arquivoSelecionado = seletorArquivo.showOpenDialog(null);
 
+        // Verifica se um arquivo foi selecionado
         if (arquivoSelecionado != null) {
             try {
-                Mat imagemOriginal = Imgcodecs.imread(arquivoSelecionado.getAbsolutePath());
+                // Carrega a imagem usando a biblioteca OpenCV
+                Mat imagemOriginal = Imgcodecs.imread(
+                        arquivoSelecionado.getAbsolutePath()
+                );
+                // Verifica se a imagem não está vazia
                 if (!imagemOriginal.empty()) {
                     System.out.println("Imagem aberta com sucesso.");
-                    exibirImagem(imagemOriginal, visualizadorOriginal);
+                    exibirImagem(
+                            imagemOriginal,
+                            visualizadorOriginal
+                    );
                 } else {
                     System.err.println("Erro ao abrir a imagem: A imagem está vazia.");
                 }
@@ -86,15 +111,20 @@ public class ImageProcessor extends Application {
 
     // Método para processar a imagem
     private void processarImagem() {
+        // Verifica se uma imagem original foi carregada
         if (visualizadorOriginal.getImage() != null) {
             Image imagemOriginal = visualizadorOriginal.getImage();
-            Mat matrizOriginal = bufferedImageParaMat(SwingFXUtils.fromFXImage(imagemOriginal, null));
+            Mat matrizOriginal = bufferedImageParaMat(
+                    SwingFXUtils.fromFXImage(
+                            imagemOriginal,
+                            null)
+            );
             Mat matrizProcessada = aplicarDesfoqueGaussiano(matrizOriginal);
 
             Image imagemProcessada = matParaImagem(matrizProcessada);
             visualizadorProcessado.setImage(imagemProcessada);
 
-            // Exibir imagens original e processada em uma nova janela
+            // Exibe imagens original e processada em uma nova janela
             exibirLadoALado(matrizOriginal, matrizProcessada);
         }
     }
@@ -125,13 +155,22 @@ public class ImageProcessor extends Application {
         Mat imagemSaida = new Mat();
 
         // Calcular o tamanho do kernel com base na largura da imagem
-        int tamanhoKernel = (int) (imagemEntrada.width() * 0.05);
+        int tamanhoKernel = (int) (imagemEntrada.width() * 0.1);
 
         // Certificar-se de que o tamanho do kernel seja ímpar
         tamanhoKernel = (tamanhoKernel % 2 == 0) ? tamanhoKernel + 1 : tamanhoKernel;
 
         // Aplicar o filtro Gaussiano
-        Imgproc.GaussianBlur(imagemEntrada, imagemSaida, new org.opencv.core.Size(tamanhoKernel, tamanhoKernel), 0, 0);
+        Imgproc.GaussianBlur(
+                imagemEntrada,
+                imagemSaida,
+                new org.opencv.core.Size(
+                        tamanhoKernel,
+                        tamanhoKernel
+                ),
+                0,
+                0
+        );
 
         return imagemSaida;
     }
@@ -141,26 +180,48 @@ public class ImageProcessor extends Application {
         Mat matriz;
         DataBuffer dataBuffer = imagemBuffer.getRaster().getDataBuffer();
 
+        // Verifica o tipo de buffer de dados (byte ou inteiro) e converte para o formato apropriado
         if (dataBuffer instanceof DataBufferByte) {
+            // Se a imagem é representada por bytes
             byte[] dados = ((DataBufferByte) dataBuffer).getData();
-            matriz = new Mat(imagemBuffer.getHeight(), imagemBuffer.getWidth(), CvType.CV_8UC3);
+            matriz = new Mat(
+                    imagemBuffer.getHeight(),
+                    imagemBuffer.getWidth(),
+                    CvType.CV_8UC3
+            );
             matriz.put(0, 0, dados);
         } else if (dataBuffer instanceof DataBufferInt) {
+            // Se a imagem é representada por inteiros
             int[] dados = ((DataBufferInt) dataBuffer).getData();
             byte[] bytes = new byte[imagemBuffer.getWidth() * imagemBuffer.getHeight() * 4];
 
             int indicePixel = 0;
+            // Itera sobre as linhas da imagem
             for (int y = 0; y < imagemBuffer.getHeight(); y++) {
+                // Itera sobre as colunas da imagem
                 for (int x = 0; x < imagemBuffer.getWidth(); x++) {
+                    // Obtém o valor inteiro do pixel a partir do array de dados
                     int pixel = dados[indicePixel++];
-                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 2] = (byte) ((pixel >> 16) & 0xFF); // Componente Vermelho
-                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 1] = (byte) ((pixel >> 8) & 0xFF);  // Componente Verde
-                    bytes[(y * imagemBuffer.getWidth() + x) * 4] = (byte) (pixel & 0xFF);             // Componente Azul
-                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 3] = (byte) ((pixel >> 24) & 0xFF); // Componente Alfa
+
+                    // Extrai e armazena o componente Vermelho (Red) no array de bytes
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 2] = (byte) ((pixel >> 16) & 0xFF);
+
+                    // Extrai e armazena o componente Verde (Green) no array de bytes
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 1] = (byte) ((pixel >> 8) & 0xFF);
+
+                    // Extrai e armazena o componente Azul (Blue) no array de bytes
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4] = (byte) (pixel & 0xFF);
+
+                    // Extrai e armazena o componente Alfa (Alpha) no array de bytes
+                    bytes[(y * imagemBuffer.getWidth() + x) * 4 + 3] = (byte) ((pixel >> 24) & 0xFF);
                 }
             }
 
-            matriz = new Mat(imagemBuffer.getHeight(), imagemBuffer.getWidth(), CvType.CV_8UC4);
+            matriz = new Mat(
+                    imagemBuffer.getHeight(),
+                    imagemBuffer.getWidth(),
+                    CvType.CV_8UC4
+            );
             matriz.put(0, 0, bytes);
             Imgproc.cvtColor(matriz, matriz, Imgproc.COLOR_BGRA2BGR);
         } else {
